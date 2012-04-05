@@ -4,8 +4,8 @@
  *
  * @author Gabriel Llamas
  * @created 28/03/2012
- * @modified 03/04/2012
- * @version 0.1.0
+ * @modified 05/04/2012
+ * @version 0.1.1
  */
 "use strict";
 
@@ -16,32 +16,39 @@ var CRYPTO = require ("crypto");
 
 var SLASH = PATH.normalize ("/");
 
+var updateFileProperties = function (file, path){
+	var isAbsolute = false;
+	var relativePath = null;
+	
+	if (path){
+		path = PATH.normalize (path);
+		isAbsolute = path[0] === SLASH || path.indexOf (":") !== -1;
+		
+		if (!isAbsolute){
+			if (path === ("." + SLASH)){
+				path = "";
+			}else if (path === ".." + SLASH){
+				path = "..";
+			}
+		}
+		relativePath = isAbsolute ? path : PATH.join (file._relative, path);
+	}
+	
+	Object.defineProperties (file, {
+		"_isAbsolute": { value: isAbsolute, writable: true },
+		"_path": { value: path, writable: true },
+		"_relativePath": { value: relativePath, writable: true }
+	});
+};
+
 var File = function (p){
 	var main = process.mainModule.filename;
 	var cwd = main.substring (0, main.lastIndexOf (SLASH));
 	var relative = PATH.relative (process.cwd (), cwd);
-	var path = null;
-	var relativePath = null;
-	var isAbsolute = false;
-	
-	if (p){
-		p = PATH.normalize (p);
-		isAbsolute = p[0] === SLASH || p.indexOf (":") !== -1;
-		if (p === ("." + SLASH)){
-			p = "";
-		}else if (p === ".." + SLASH){
-			p = "..";
-		}
-		path = p;
-		relativePath = isAbsolute ? p : PATH.join (relative, p);
-	}
-	
+
 	var me = this;
 	Object.defineProperties (this, {
-		"_isAbsolute": { value: isAbsolute },
 		"_relative": { value: relative },
-		"_path": { value: path },
-		"_relativePath": { value: relativePath },
 		"_removeOnExit": { value: false, writable: true },
 		"_removeOnExitCallback": {
 			value: function (){
@@ -49,6 +56,8 @@ var File = function (p){
 			}
 		}
 	});
+	
+	updateFileProperties (this, p);
 };
 
 var checkPermission = function (file, mask, cb){
@@ -163,7 +172,7 @@ File.prototype.copy = function (destination, replace, cb){
 			if (cb) cb (error, false);
 		});
 		s.once ("open", function (fd){
-			UTIL.pump (FS.createReadStream (me._relativePath), f, function (error){
+			UTIL.pump (FS.createReadStream (me._relativePath), s, function (error){
 				error = error === undefined ? null : error;
 				if (cb) cb (error, !error);
 			});
@@ -238,23 +247,23 @@ File.prototype.createDirectory = function (cb){
 		path.exists (function (exists){
 			if (exists) return cb (null, false);
 			
-			path.mkdir (function (error, created){
-				if (created) return cb (null, true);
+			FS.mkdir (path, function (error){
+				if (!error) return cb (null, true);
 				
 				var parent = path.getParentFile ();
 				if (parent === null) return cb (null, false);
 				
 				mkdirDeep (parent, function (error, created){
 					if (created){
-						path.mkdir (function (error, created){
-							cb (error, created);
+						FS.mkdir (path, function (error){
+							cb (error, !error);
 						});
 					}else{
 						parent.exists (function (exists){
 							if (!exists) return cb (null, false);
 							
-							path.mkdir (function (error, created){
-								cb (error, created);
+							FS.mkdir (path, function (error){
+								cb (error, !error);
 							});
 						});
 					}
@@ -283,8 +292,10 @@ File.prototype.createNewFile = function (cb){
 			s.on ("error", function (error){
 				if (cb) cb (error, false);
 			});
+			s.on ("close", function (){
+				if (cb) cb (null, true);
+			});
 			s.end ();
-			if (cb) cb (null, true);
 		}
 	});
 };
@@ -292,6 +303,7 @@ File.prototype.createNewFile = function (cb){
 File.createTempFile = function (settings, cb){
 	if (arguments.length === 1 && typeof settings === "function"){
 		cb = settings;
+		settings = null;
 	}
 	
 	var pre = "";
@@ -315,8 +327,10 @@ File.createTempFile = function (settings, cb){
 			s.on ("error", function (error){
 				if (cb) cb (error, null);
 			});
+			s.on ("close", function (){
+				if (cb) cb (null, f);
+			});
 			s.end ();
-			if (cb) cb (null, f);
 		}
 	});
 }
@@ -375,10 +389,10 @@ File.prototype.getPath = function (){
 
 File.prototype.getPermissions = function (cb){
 	if (!cb) return;
-	if (!this._path) return cb (null, false);
+	if (!this._path) return cb (null, null);
 	FS.stat (this._relativePath, function (error, stats){
 		if (error){
-			cb (error, false);
+			cb (error, null);
 		}else{
 			cb (null, (stats.mode & parseInt ("777", 8)).toString (8));
 		}
@@ -404,14 +418,14 @@ File.prototype.isFile = function (cb){
 };
 
 File.prototype.isHidden = function (){
-	throw "Not yet implemented.";
+	return this.getName ()[0] === ".";
 };
 
 File.prototype.lastModified = function (cb){
 	if (!cb) return;
-	if (!this._path) return cb ("Null path.");
+	if (!this._path) return cb (null, null);
 	FS.stat (this._relativePath, function (error, stats){
-		if (error) cb (error);
+		if (error) cb (error, null);
 		else cb (null, stats.mtime);
 	});
 };
@@ -526,44 +540,6 @@ File.prototype.listFiles = function (filter, cb){
 	});
 };
 
-File.prototype.rename = function (file, replace, cb){
-	var argsLen = arguments.length;
-	if (argsLen === 1){
-		replace = false;
-	}else if (argsLen === 2 && typeof replace === "function"){
-		cb = replace;
-		replace = false;
-	}
-	
-	if (!this._path){
-		if (cb) cb (null, false);
-		return;
-	}
-	
-	var isAbsolute = file instanceof File ?
-		file._isAbsolute :
-		new File (file)._isAbsolute;
-	
-	var stringDest = PATH.normalize (file.toString ());
-	var renamedFile = isAbsolute ? stringDest : PATH.join (this._relative, stringDest);
-	if (replace){
-		FS.rename (this._relativePath, renamedFile, function (error){
-			if (cb) cb (error, !error);
-		});
-	}else{
-		var me = this;
-		PATH.exists (renamedFile, function (exists){
-			if (exists){
-				if (cb) cb (null, false);
-			}else{
-				FS.rename (me._relativePath, renamedFile, function (error){
-					if (cb) cb (error, !error);
-				});
-			}
-		});
-	}
-};
-
 File.prototype.remove = function (cb){
 	if (!this._path){
 		if (cb) cb (null, false);
@@ -606,17 +582,16 @@ File.prototype.remove = function (cb){
 					return false;
 				};
 				
-				if (!finish ()){
-					for (var i in files){
-						new File (PATH.join (me._path, files[i])).remove (function (error, removed){
-							if (error){
-								if (cb) cb (error, false);
-							}else{
-								done++;
-								finish ();
-							}
-						});
-					}
+				if (finish ()) return;
+				for (var i in files){
+					new File (PATH.join (me._path, files[i])).remove (function (error, removed){
+						if (error){
+							if (cb) cb (error, false);
+						}else{
+							done++;
+							finish ();
+						}
+					});
 				}
 			});
 		}
@@ -652,6 +627,55 @@ File.prototype.removeOnExit = function (remove){
 	}
 };
 
+File.prototype.rename = function (file, replace, cb){
+	var argsLen = arguments.length;
+	if (argsLen === 1){
+		replace = false;
+	}else if (argsLen === 2 && typeof replace === "function"){
+		cb = replace;
+		replace = false;
+	}
+	
+	if (!this._path){
+		if (cb) cb (null, false);
+		return;
+	}
+	
+	var isAbsolute = file instanceof File ?
+		file._isAbsolute :
+		new File (file)._isAbsolute;
+	
+	var me = this;
+	var stringDest = PATH.normalize (file.toString ());
+	var renamedFile = isAbsolute ? stringDest : PATH.join (this._relative, stringDest);
+	
+	var me = this;
+	
+	var rename = function (){
+		FS.rename (me._relativePath, renamedFile, function (error){
+			if (error){
+				if (cb) cb (error, false);
+			}else{
+				updateFileProperties (me, stringDest);
+				if (cb) cb (null, true);
+			}
+		});
+	};
+	
+	if (replace){
+		rename ();
+	}else{
+		var me = this;
+		PATH.exists (renamedFile, function (exists){
+			if (exists){
+				if (cb) cb (null, false);
+			}else{
+				rename ();
+			}
+		});
+	}
+};
+
 File.prototype.search = function (file, cb){
 	if (!cb) return;
 	if (!this._path) return cb (null, false);
@@ -659,7 +683,7 @@ File.prototype.search = function (file, cb){
 	file = file instanceof File ? file.getName () : file;
 	var files = [];
 	
-	this.list (function (name, path){
+	this.list (function (name, path){console.log (name + " - " + path);
 		if (name === file){
 			files.push (path);
 		}
@@ -670,8 +694,31 @@ File.prototype.search = function (file, cb){
 	});
 };
 
-File.prototype.setExecutable = function (executable, cb){
+File.prototype.searchFiles = function (file, cb){
+	if (!cb) return;
 	if (!this._path) return cb (null, false);
+	
+	this.search (file, function (error, files){
+		if (error){
+			cb (error, null);
+		}else{
+			for (var i in files){
+				files[i] = new File (files[i]);
+			}
+			cb (null, files);
+		}
+	});
+};
+
+File.prototype.setExecutable = function (executable, cb){
+	var argsLen = arguments.length;
+	if (argsLen === 0){
+		executable = true;
+	}else if (argsLen === 1 && typeof executable === "function"){
+		cb = executable;
+		executable = true;
+	}
+	if (!this._path || process.platform === "win32") return cb (null, false);
 	setPermission (this._relativePath, 1, executable, cb);
 };
 
@@ -683,7 +730,14 @@ File.prototype.setPermissions = function (permissions, cb){
 };
 
 File.prototype.setReadable = function (readable, cb){
-	if (!this._path) return cb (null, false);
+	var argsLen = arguments.length;
+	if (argsLen === 0){
+		readable = true;
+	}else if (argsLen === 1 && typeof readable === "function"){
+		cb = readable;
+		readable = true;
+	}
+	if (!this._path || process.platform === "win32") return cb (null, false);
 	setPermission (this._relativePath, 4, readable, cb);
 };
 
@@ -694,17 +748,61 @@ File.prototype.setReadOnly = function (cb){
 };
 
 File.prototype.setWritable = function (writable, cb){
+	var argsLen = arguments.length;
+	if (argsLen === 0){
+		writable = true;
+	}else if (argsLen === 1 && typeof writable === "function"){
+		cb = writable;
+		writable = true;
+	}
 	if (!this._path) return cb (null, false);
 	setPermission (this._relativePath, 2, writable, cb);
 };
 
 File.prototype.size = function (cb){
 	if (!cb) return;
-	if (!this._path) return cb ("Null path.", null);
-	FS.stat (this._relativePath, function (error, stats){
-		if (error) cb (error, null);
-		else cb (null, stats.size);
-	});
+	if (!this._path) return cb (null, 0);
+	
+	var total = 0;
+	var me = this;
+	
+	var calculateSize = function (cb){
+		FS.stat (me._relativePath, function (error, stats){
+			if (error){
+				cb (error, null);
+			}else if (stats.isFile ()){
+				cb (null, stats.size);
+			}else if (stats.isDirectory ()){
+				FS.readdir (me._relativePath, function (error, files){
+					var filesLen = files.length;
+					var done = 0;
+					
+					var finish = function (){
+						if (done === filesLen){
+							cb (null, total);
+							return true;
+						}
+						return false;
+					};
+					
+					if (finish ()) return;
+					files.forEach (function (file){
+						new File (PATH.join (me._path, file)).size (function (error, size){
+							if (error){
+								cb (error, 0);
+							}else{
+								total += size;
+								done++;
+								finish ();
+							}
+						});
+					});
+				});
+			}
+		});
+	};
+	
+	calculateSize (cb);
 };
 
 File.prototype.toString = function (){
