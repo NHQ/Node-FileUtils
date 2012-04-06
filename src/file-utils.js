@@ -15,6 +15,7 @@ var UTIL = require ("util");
 var CRYPTO = require ("crypto");
 
 var SLASH = PATH.normalize ("/");
+var NULL_PATH_ERROR = new Error ("Null path");
 
 var updateFileProperties = function (file, path){
 	file._path = null;
@@ -87,19 +88,19 @@ var setPermission = function (file, mask, action, cb){
 
 File.prototype.canExecute = function (cb){
 	if (!cb) return;
-	if (!this._path) return cb (null, false);
+	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	checkPermission (this._usablePath, 1, cb);
 };
 
 File.prototype.canRead = function (cb){
 	if (!cb) return;
-	if (!this._path) return cb (null, false);
+	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	checkPermission (this._usablePath, 4, cb);
 };
 
 File.prototype.canWrite = function (cb){
 	if (!cb) return;
-	if (!this._path) return cb (null, false);
+	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	checkPermission (this._usablePath, 2, cb);
 };
 
@@ -110,7 +111,7 @@ File.prototype.checksum = function (algorithm, encoding, cb){
 	}
 	
 	if (!cb) return;
-	if (!this._path) return cb (null, null);
+	if (!this._path) return cb (NULL_PATH_ERROR, null);
 	var me = this;
 	FS.stat (this._usablePath, function (error, stats){
 		if (error){
@@ -150,7 +151,7 @@ File.prototype.copy = function (destination, replace, cb){
 	}
 
 	if (!this._path){
-		if (cb) cb (null, false);
+		if (cb) cb (NULL_PATH_ERROR, false);
 		return;
 	}
 	
@@ -234,7 +235,7 @@ File.prototype.copy = function (destination, replace, cb){
 
 File.prototype.createDirectory = function (cb){
 	if (!this._path){
-		if (cb) cb (null, false);
+		if (cb) cb (NULL_PATH_ERROR, false);
 		return;
 	}
 	
@@ -274,7 +275,7 @@ File.prototype.createDirectory = function (cb){
 
 File.prototype.createNewFile = function (cb){
 	if (!this._path){
-		if (cb) cb (null, false);
+		if (cb) cb (NULL_PATH_ERROR, false);
 		return;
 	}
 	
@@ -384,7 +385,7 @@ File.prototype.getPath = function (){
 
 File.prototype.getPermissions = function (cb){
 	if (!cb) return;
-	if (!this._path) return cb (null, null);
+	if (!this._path) return cb (NULL_PATH_ERROR, null);
 	FS.stat (this._usablePath, function (error, stats){
 		if (error){
 			cb (error, null);
@@ -400,7 +401,7 @@ File.prototype.isAbsolute = function (){
 
 File.prototype.isDirectory = function (cb){
 	if (!cb) return;
-	if (!this._path) return cb (null, false);
+	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	FS.stat (this._usablePath, function (error, stats){
 		if (error) cb (error, false);
 		else cb (null, stats.isDirectory ());
@@ -409,7 +410,7 @@ File.prototype.isDirectory = function (cb){
 
 File.prototype.isFile = function (cb){
 	if (!cb) return;
-	if (!this._path) return cb (null, false);
+	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	FS.stat (this._usablePath, function (error, stats){
 		if (error) cb (error, false);
 		else cb (null, stats.isFile ());
@@ -422,7 +423,7 @@ File.prototype.isHidden = function (){
 
 File.prototype.lastModified = function (cb){
 	if (!cb) return;
-	if (!this._path) return cb (null, null);
+	if (!this._path) return cb (NULL_PATH_ERROR, null);
 	FS.stat (this._usablePath, function (error, stats){
 		if (error) cb (error, null);
 		else cb (null, stats.mtime);
@@ -437,7 +438,7 @@ File.prototype.list = function (filter, cb){
 		filter = null;
 	}
 	if (!cb) return;
-	if (!this._path) return (null, null);
+	if (!this._path) return (NULL_PATH_ERROR, null);
 	
 	var me = this;
 	FS.stat (this._usablePath, function (error, stats){
@@ -541,7 +542,7 @@ File.prototype.listFiles = function (filter, cb){
 
 File.prototype.remove = function (cb){
 	if (!this._path){
-		if (cb) cb (null, false);
+		if (cb) cb (NULL_PATH_ERROR, false);
 		return;
 	}
 	
@@ -636,7 +637,7 @@ File.prototype.rename = function (file, replace, cb){
 	}
 	
 	if (!this._path){
-		if (cb) cb (null, false);
+		if (cb) cb (NULL_PATH_ERROR, false);
 		return;
 	}
 	
@@ -677,7 +678,7 @@ File.prototype.rename = function (file, replace, cb){
 
 File.prototype.search = function (file, cb){
 	if (!cb) return;
-	if (!this._path) return cb (null, false);
+	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	
 	file = file instanceof File ? file.getName () : file;
 	var files = [];
@@ -695,7 +696,7 @@ File.prototype.search = function (file, cb){
 
 File.prototype.searchFiles = function (file, cb){
 	if (!cb) return;
-	if (!this._path) return cb (null, false);
+	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	
 	this.search (file, function (error, files){
 		if (error){
@@ -717,12 +718,20 @@ File.prototype.setExecutable = function (executable, cb){
 		cb = executable;
 		executable = true;
 	}
-	if (!this._path || process.platform === "win32") return cb (null, false);
+	
+	if (!this._path){
+		if (cb) cb (NULL_PATH_ERROR, false);
+		return;
+	}
+	if (process.platform === "win32"){
+		if (cb) cb (null, false);
+	}
+	
 	setPermission (this._usablePath, 1, executable, cb);
 };
 
 File.prototype.setPermissions = function (permissions, cb){
-	if (!this._path) return cb (null, false);
+	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	FS.chmod (this._usablePath, permissions, function (error){
 		if (cb) cb (error, !error);
 	});
@@ -736,7 +745,15 @@ File.prototype.setReadable = function (readable, cb){
 		cb = readable;
 		readable = true;
 	}
-	if (!this._path || process.platform === "win32") return cb (null, false);
+	
+	if (!this._path){
+		if (cb) cb (NULL_PATH_ERROR, false);
+		return;
+	}
+	if (process.platform === "win32"){
+		if (cb) cb (null, false);
+	}
+	
 	setPermission (this._usablePath, 4, readable, cb);
 };
 
@@ -754,13 +771,13 @@ File.prototype.setWritable = function (writable, cb){
 		cb = writable;
 		writable = true;
 	}
-	if (!this._path) return cb (null, false);
+	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	setPermission (this._usablePath, 2, writable, cb);
 };
 
 File.prototype.size = function (cb){
 	if (!cb) return;
-	if (!this._path) return cb (null, 0);
+	if (!this._path) return cb (NULL_PATH_ERROR, 0);
 	
 	var total = 0;
 	var me = this;
