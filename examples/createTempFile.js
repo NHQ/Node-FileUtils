@@ -6,6 +6,6 @@ var settings = {
 	directory: "."
 };
 
-File.createTempFile (settings, function (error, file){
+var file = File.createTempFile (settings, function (error, file){
 	console.log (file.toString ()); //Prints: foo<random number>bar
 });

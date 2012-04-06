@@ -7,7 +7,7 @@ Node FileUtils
 
 [Availability](#availability) | [Compatibility](#compatibility) | [Documentation](#documentation)
 
-Version: 0.1.1
+Version: 0.1.2
 
 <a name="availability"></a>
 #### Availability [↑](#start) ####
@@ -28,7 +28,7 @@ Or simply copying `build/file-utils.js` into your project's directory and `requi
 <a name="compatibility"></a>
 #### Compatibility [↑](#start) ####
 
-✔ Node *
+✔ Node 0.1.7+
 
 ***
 
