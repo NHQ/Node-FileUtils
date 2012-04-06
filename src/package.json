@@ -9,6 +9,9 @@
 		"type": 		"git",
 		"url":			"git://github.com/Gagle/Node-File.git"
 	},
+	"engines": {
+		"node":			">=0.1.7"
+	},
 	"keywords":			["file", "directory", "folder", "utilities", "utils", "file utils",
 						"file utilities", "path"],
 	"licenses": [{

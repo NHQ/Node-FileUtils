@@ -20,14 +20,13 @@ var updateFileProperties = function (file, path){
 	file._path = null;
 	file._usablePath = null;
 	file._isAbsolute = false;
-	file._windowsRoot = "";
 	
-	if (!path) return;
+	if (path === undefined || path === null) return;
 	
 	path = PATH.normalize (path);
 	
 	var index = path.indexOf (":") + 1;
-	file._windowsRoot = path.substring (0, index);
+	var windowsRoot = path.substring (0, index);
 	path = path.substring (index);
 	
 	//https://github.com/joyent/node/issues/3066
@@ -37,8 +36,8 @@ var updateFileProperties = function (file, path){
 	}
 	
 	file._isAbsolute = path[0] === SLASH;
-	file._path = path;
-	file._usablePath = file._isAbsolute ? path : PATH.join (file._relative, path);
+	file._path = windowsRoot + path;
+	file._usablePath = file._isAbsolute ? file._path : (windowsRoot + PATH.join (file._relative, path));
 };
 
 var File = function (path){
@@ -353,7 +352,7 @@ File.prototype.getAbsoluteFile = function (){
 
 File.prototype.getAbsolutePath = function (){
 	if (!this._path) return null;
-	if (this._isAbsolute) return this._windowsRoot + this._path;
+	if (this._isAbsolute) return this._path;
 	return PATH.join (PATH.dirname (process.mainModule.filename), this._path);
 };
 
