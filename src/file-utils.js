@@ -20,7 +20,7 @@ var updateFileProperties = function (file, path){
 	file._path = null;
 	file._usablePath = null;
 	file._isAbsolute = false;
-	file._windowsRoot = null;
+	file._windowsRoot = "";
 	
 	if (!path) return;
 	
@@ -353,7 +353,7 @@ File.prototype.getAbsoluteFile = function (){
 
 File.prototype.getAbsolutePath = function (){
 	if (!this._path) return null;
-	if (this._isAbsolute) return this._path;
+	if (this._isAbsolute) return this._windowsRoot + this._path;
 	return PATH.join (PATH.dirname (process.mainModule.filename), this._path);
 };
 
