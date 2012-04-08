@@ -4,8 +4,8 @@
  *
  * @author Gabriel Llamas
  * @created 28/03/2012
- * @modified 06/04/2012
- * @version 0.1.2
+ * @modified 08/04/2012
+ * @version 0.1.3
  */
 "use strict";
 
@@ -15,7 +15,12 @@ var UTIL = require ("util");
 var CRYPTO = require ("crypto");
 
 var SLASH = PATH.normalize ("/");
-var NULL_PATH_ERROR = new Error ("Null path");
+var NULL_PATH_ERROR = new Error ("Null path.");
+var SECURITY_READ_ERROR = new Error ("Security error, cannot read.");
+var SECURITY_WRITE_ERROR = new Error ("Security error, cannot write.");
+var SECURITY_READ_WRITE_ERROR = new Error ("Security error, cannot read nor write.");
+
+var SM = null;
 
 var updateFileProperties = function (file, path){
 	file._path = null;
@@ -49,9 +54,20 @@ var File = function (path){
 	var me = this;
 	this._relative = relative;
 	this._removeOnExit = false;
-	this._removeOnExitCallback = function (){
-		removeSynchronous (me);
+	this._removeOnExitCallback = function (cb){
+		if (!me._removeOnExit) return;
+		try{
+			var error = removeSynchronous (me);
+			if (error instanceof Error){
+				cb (error, false);
+			}else{
+				cb (null, error);
+			}
+		}catch (e){
+			cb (e);
+		}
 	};
+	this._removeOnExitCallback.first = true;
 	
 	updateFileProperties (this, path);
 };
@@ -89,18 +105,27 @@ var setPermission = function (file, mask, action, cb){
 File.prototype.canExecute = function (cb){
 	if (!cb) return;
 	if (!this._path) return cb (NULL_PATH_ERROR, false);
+	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
+		return cb (SECURITY_READ_ERROR, false);
+	}
 	checkPermission (this._usablePath, 1, cb);
 };
 
 File.prototype.canRead = function (cb){
 	if (!cb) return;
 	if (!this._path) return cb (NULL_PATH_ERROR, false);
+	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
+		return cb (SECURITY_READ_ERROR, false);
+	}
 	checkPermission (this._usablePath, 4, cb);
 };
 
 File.prototype.canWrite = function (cb){
 	if (!cb) return;
 	if (!this._path) return cb (NULL_PATH_ERROR, false);
+	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
+		return cb (SECURITY_READ_ERROR, false);
+	}
 	checkPermission (this._usablePath, 2, cb);
 };
 
@@ -112,6 +137,10 @@ File.prototype.checksum = function (algorithm, encoding, cb){
 	
 	if (!cb) return;
 	if (!this._path) return cb (NULL_PATH_ERROR, null);
+	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
+		return cb (SECURITY_READ_ERROR, null);
+	}
+	
 	var me = this;
 	FS.stat (this._usablePath, function (error, stats){
 		if (error){
@@ -152,6 +181,10 @@ File.prototype.copy = function (destination, replace, cb){
 
 	if (!this._path){
 		if (cb) cb (NULL_PATH_ERROR, false);
+		return;
+	}
+	if (!(checkSecurity (this._usablePath) & SecurityManager.READ_WRITE.id)){
+		if (cb) cb (SECURITY_READ_WRITE_ERROR, false);
 		return;
 	}
 	
@@ -238,6 +271,10 @@ File.prototype.createDirectory = function (cb){
 		if (cb) cb (NULL_PATH_ERROR, false);
 		return;
 	}
+	if (!(checkSecurity (this._usablePath) & SecurityManager.WRITE.id)){
+		if (cb) cb (SECURITY_WRITE_ERROR, false);
+		return;
+	}
 	
 	var mkdirDeep = function (path, cb){
 		path.exists (function (exists){
@@ -278,6 +315,10 @@ File.prototype.createNewFile = function (cb){
 		if (cb) cb (NULL_PATH_ERROR, false);
 		return;
 	}
+	if (!(checkSecurity (this._usablePath) & SecurityManager.WRITE.id)){
+		if (cb) cb (SECURITY_WRITE_ERROR, false);
+		return;
+	}
 	
 	var path = this._usablePath;
 	PATH.exists (path, function (exists){
@@ -300,6 +341,10 @@ File.createTempFile = function (settings, cb){
 	if (arguments.length === 1 && typeof settings === "function"){
 		cb = settings;
 		settings = null;
+	}
+	if (!(checkSecurity (this._usablePath) & SecurityManager.WRITE.id)){
+		if (cb) cb (SECURITY_WRITE_ERROR, false);
+		return;
 	}
 	
 	var pre = "";
@@ -341,6 +386,9 @@ File.prototype.equals = function (file){
 File.prototype.exists = function (cb){
 	if (!cb) return;
 	if (!this._path) return cb (false);
+	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
+		return cb (SECURITY_READ_ERROR, false);
+	}
 	
 	PATH.exists (this._usablePath, function (exists){
 		cb (exists);
@@ -386,6 +434,9 @@ File.prototype.getPath = function (){
 File.prototype.getPermissions = function (cb){
 	if (!cb) return;
 	if (!this._path) return cb (NULL_PATH_ERROR, null);
+	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
+		return cb (SECURITY_READ_ERROR, null);
+	}
 	FS.stat (this._usablePath, function (error, stats){
 		if (error){
 			cb (error, null);
@@ -402,6 +453,9 @@ File.prototype.isAbsolute = function (){
 File.prototype.isDirectory = function (cb){
 	if (!cb) return;
 	if (!this._path) return cb (NULL_PATH_ERROR, false);
+	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
+		return cb (SECURITY_READ_ERROR, false);
+	}
 	FS.stat (this._usablePath, function (error, stats){
 		if (error) cb (error, false);
 		else cb (null, stats.isDirectory ());
@@ -411,6 +465,9 @@ File.prototype.isDirectory = function (cb){
 File.prototype.isFile = function (cb){
 	if (!cb) return;
 	if (!this._path) return cb (NULL_PATH_ERROR, false);
+		if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
+		return cb (SECURITY_READ_ERROR, false);
+	}
 	FS.stat (this._usablePath, function (error, stats){
 		if (error) cb (error, false);
 		else cb (null, stats.isFile ());
@@ -424,6 +481,9 @@ File.prototype.isHidden = function (){
 File.prototype.lastModified = function (cb){
 	if (!cb) return;
 	if (!this._path) return cb (NULL_PATH_ERROR, null);
+	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
+		return cb (SECURITY_READ_ERROR, null);
+	}
 	FS.stat (this._usablePath, function (error, stats){
 		if (error) cb (error, null);
 		else cb (null, stats.mtime);
@@ -439,6 +499,9 @@ File.prototype.list = function (filter, cb){
 	}
 	if (!cb) return;
 	if (!this._path) return (NULL_PATH_ERROR, null);
+	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
+		return cb (SECURITY_READ_ERROR, null);
+	}
 	
 	var me = this;
 	FS.stat (this._usablePath, function (error, stats){
@@ -540,9 +603,17 @@ File.prototype.listFiles = function (filter, cb){
 	});
 };
 
+File.protect = function (sm){
+	SM = sm;
+};
+
 File.prototype.remove = function (cb){
 	if (!this._path){
 		if (cb) cb (NULL_PATH_ERROR, false);
+		return;
+	}
+	if (!(checkSecurity (this._usablePath) & SecurityManager.WRITE.id)){
+		if (cb) cb (SECURITY_WRITE_ERROR, false);
 		return;
 	}
 	
@@ -600,6 +671,9 @@ File.prototype.remove = function (cb){
 
 var removeSynchronous = function (file){
 	if (!file._path) return false;
+	if (!(checkSecurity (file._usablePath) & SecurityManager.WRITE.id)){
+		return SECURITY_WRITE_ERROR;
+	}
 	if (!PATH.existsSync (file._usablePath)) return false;
 	
 	var stats = FS.statSync (file._usablePath);
@@ -616,14 +690,23 @@ var removeSynchronous = function (file){
 	return true;
 };
 
-File.prototype.removeOnExit = function (remove){
-	remove = remove !== undefined ? remove : true;
-	if (!this._removeOnExit && remove){
-		this._removeOnExit = remove;
-		process.on ("exit", this._removeOnExitCallback);
-	}else if (this._removeOnExit && !remove){
-		this._removeOnExit = remove;
-		process.removeListener ("exit", this._removeOnExitCallback);
+File.prototype.removeOnExit = function (remove, cb){
+	var argsLen = arguments.length;
+	if (argsLen === 0){
+		remove = true;
+	}else if (argsLen === 1 && typeof remove === "function"){
+		cb = remove;
+		remove = true;
+	}
+	
+	this._removeOnExit = remove;
+	
+	if (remove && this._removeOnExitCallback.first){
+		this._removeOnExitCallback.first = false;
+		var me = this;
+		process.on ("exit", function (){
+			me._removeOnExitCallback (cb);
+		});
 	}
 };
 
@@ -638,6 +721,10 @@ File.prototype.rename = function (file, replace, cb){
 	
 	if (!this._path){
 		if (cb) cb (NULL_PATH_ERROR, false);
+		return;
+	}
+	if (!(checkSecurity (this._usablePath) & SecurityManager.WRITE.id)){
+		if (cb) cb (SECURITY_WRITE_ERROR, false);
 		return;
 	}
 	
@@ -726,12 +813,24 @@ File.prototype.setExecutable = function (executable, cb){
 	if (process.platform === "win32"){
 		if (cb) cb (null, false);
 	}
+	if (!(checkSecurity (this._usablePath) & SecurityManager.WRITE.id)){
+		if (cb) cb (SECURITY_WRITE_ERROR, false);
+		return;
+	}
 	
 	setPermission (this._usablePath, 1, executable, cb);
 };
 
 File.prototype.setPermissions = function (permissions, cb){
-	if (!this._path) return cb (NULL_PATH_ERROR, false);
+	if (!this._path){
+		if (cb) cb (NULL_PATH_ERROR, false);
+		return;
+	}
+	if (!(checkSecurity (this._usablePath) & SecurityManager.WRITE.id)){
+		if (cb) cb (SECURITY_WRITE_ERROR, false);
+		return;
+	}
+	
 	FS.chmod (this._usablePath, permissions, function (error){
 		if (cb) cb (error, !error);
 	});
@@ -753,11 +852,24 @@ File.prototype.setReadable = function (readable, cb){
 	if (process.platform === "win32"){
 		if (cb) cb (null, false);
 	}
+	if (!(checkSecurity (this._usablePath) & SecurityManager.WRITE.id)){
+		if (cb) cb (SECURITY_WRITE_ERROR, false);
+		return;
+	}
 	
 	setPermission (this._usablePath, 4, readable, cb);
 };
 
 File.prototype.setReadOnly = function (cb){
+	if (!this._path){
+		if (cb) cb (NULL_PATH_ERROR, false);
+		return;
+	}
+	if (!(checkSecurity (this._usablePath) & SecurityManager.WRITE.id)){
+		if (cb) cb (SECURITY_WRITE_ERROR, false);
+		return;
+	}
+	
 	FS.chmod (this._usablePath, "444", function (error){
 		cb (error, !error);
 	});
@@ -771,13 +883,25 @@ File.prototype.setWritable = function (writable, cb){
 		cb = writable;
 		writable = true;
 	}
-	if (!this._path) return cb (NULL_PATH_ERROR, false);
+	
+	if (!this._path){
+		if (cb) cb (NULL_PATH_ERROR, false);
+		return;
+	}
+	if (!(checkSecurity (this._usablePath) & SecurityManager.WRITE.id)){
+		if (cb) cb (SECURITY_WRITE_ERROR, false);
+		return;
+	}
+	
 	setPermission (this._usablePath, 2, writable, cb);
 };
 
 File.prototype.size = function (cb){
 	if (!cb) return;
 	if (!this._path) return cb (NULL_PATH_ERROR, 0);
+	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
+		return cb (SECURITY_READ_ERROR, 0);
+	}
 	
 	var total = 0;
 	var me = this;
@@ -825,4 +949,91 @@ File.prototype.toString = function (){
 	return this._usablePath;
 };
 
-module.exports.File = File;
+var SecurityManager = function (){
+	this._allow = [{
+		directory: new File (".").getAbsolutePath (),
+		permissions: SecurityManager.READ_WRITE
+	}];
+	this._deny = [];
+};
+
+SecurityManager.NONE = Object.freeze ({ id: 0 });
+SecurityManager.READ = Object.freeze ({ id: 1 });
+SecurityManager.WRITE =  Object.freeze ({ id: 2 });
+SecurityManager.READ_WRITE = Object.freeze ({ id: 3 });
+
+var checkSecurity = function (path){
+	if (!SM) return SecurityManager.READ_WRITE.id;
+	
+	path = getAbsolutePath (path).replace (/\\/g, "/");
+	
+	var negatePermissions = function (id){
+		var permissions = id ^ SecurityManager.READ_WRITE.id;
+		
+		for (var p in SecurityManager){
+			p = SecurityManager[p];
+			if (p.id === permissions){
+				return p.id;
+			}
+		}
+	};
+	
+	var getPermissions = function (array, mode){
+		var last = {
+			dir: null,
+			perm: null
+		};
+		
+		for (var i in array){
+			var p = array[i];
+			var dir = p.directory.replace (/\\/g, "/");
+			var re = new RegExp ("^" + dir);
+			
+			if (path.match (re)){
+				if (!last.dir || !last.dir.match (re)){
+					last.dir = dir;
+					last.perm = mode ? negatePermissions (p.permissions.id) : p.permissions.id;
+				}
+			}
+		}
+		
+		return last.perm;
+	};
+	
+	var permissions = getPermissions (SM._deny, true);
+	if (permissions !== null){
+		return permissions;
+	}else{
+		permissions = getPermissions (SM._allow, false);
+		if (permissions !== null){
+			return permissions;
+		}else{
+			return SecurityManager.READ.id;
+		}
+	}
+	
+	return permissions;
+};
+
+var getAbsolutePath = function (path){
+	return (path instanceof File) ? path.getAbsolutePath () : new File (path).getAbsolutePath ();
+};
+
+SecurityManager.prototype.allow = function (directory, permissions){
+	this._allow.push ({
+		directory: getAbsolutePath (directory),
+		permissions: permissions ? permissions : SecurityManager.READ_WRITE
+	});
+};
+
+SecurityManager.prototype.deny = function (directory, permissions){
+	this._deny.push ({
+		directory: getAbsolutePath (directory),
+		permissions: permissions ? permissions : SecurityManager.READ_WRITE
+	});
+};
+
+module.exports = {
+	File: File,
+	SecurityManager: SecurityManager
+};

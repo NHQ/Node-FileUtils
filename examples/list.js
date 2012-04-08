@@ -17,7 +17,8 @@ var create = function (cb){
 };
 
 create (function (){
-	new File ("a").list (function (error, files){
+	var f = new File ("a");
+	f.list (function (error, files){
 		console.log (files);
 		//Prints:
 		/*
@@ -30,18 +31,18 @@ create (function (){
 				}
 			},
 			d: {},
-			"a2.txt": "a\\a2.txt",
+			"a2.txt": "a/a2.txt",
 			"a1.txt": "a/a1.txt"
 		}
 		*/
-		
-		var names = [];
-		new File ("a").list (function (name, path){
-			names.push (name);
-			return true;
-		}, function (){
-			console.log (names); //Prints: ["a1.txt", "a2.txt", "b", "d", "b1.txt", "b2.txt", "c", "c1.txt"]
-			new File ("a").remove ();
-		});
+	});
+	
+	var names = [];
+	f.list (function (name, path){
+		names.push (name);
+		return true;
+	}, function (error, files){
+		console.log (names); //Prints: ["a1.txt", "a2.txt", "b", "d", "b1.txt", "b2.txt", "c", "c1.txt"]
+		f.remove ();
 	});
 });
