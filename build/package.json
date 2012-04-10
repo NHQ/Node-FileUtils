@@ -3,7 +3,7 @@
 	"author": {
 		"name":			"Gabriel Llamas"
 	},
-	"version":			"0.1.3",
+	"version":			"0.1.4",
 	"description":		"File and directory utilities.",
 	"repository": {
 		"type": 		"git",

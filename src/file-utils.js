@@ -4,8 +4,8 @@
  *
  * @author Gabriel Llamas
  * @created 28/03/2012
- * @modified 08/04/2012
- * @version 0.1.3
+ * @modified 10/04/2012
+ * @version 0.1.4
  */
 "use strict";
 
@@ -59,12 +59,12 @@ var File = function (path){
 		try{
 			var error = removeSynchronous (me);
 			if (error instanceof Error){
-				cb (error, false);
+				if (cb) cb (error, false);
 			}else{
-				cb (null, error);
+				if (cb) cb (null, error);
 			}
 		}catch (e){
-			cb (e);
+			if (cb) cb (e);
 		}
 	};
 	this._removeOnExitCallback.first = true;
@@ -188,15 +188,16 @@ File.prototype.copy = function (location, replace, cb){
 		return;
 	}
 	
-	var isAbsolute = location instanceof File ?
-		location._isAbsolute :
-		new File (location)._isAbsolute;
+	if (!(location instanceof File)){
+		location = new File (location);
+	}
 	
-	var stringDest = PATH.normalize (location.toString ());
-	var dest = isAbsolute ? stringDest : PATH.join (this._relative, stringDest);
+	var path = location._path;
+	location = location._usablePath;
+	
 	var me = this;
 	var copyFile = function (){
-		var s = FS.createWriteStream (dest);
+		var s = FS.createWriteStream (location);
 		s.on ("error", function (error){
 			if (cb) cb (error, false);
 		});
@@ -208,7 +209,7 @@ File.prototype.copy = function (location, replace, cb){
 		});
 	};
 	var copyDirectory = function (){
-		FS.mkdir (dest, function (error){
+		FS.mkdir (location, function (error){
 			if (error){
 				if (cb) cb (error, false);
 			}else{
@@ -220,7 +221,7 @@ File.prototype.copy = function (location, replace, cb){
 						var done = 0;
 						files.forEach (function (file){
 							new File (PATH.join (me._path, file))
-								.copy (PATH.join (stringDest, file), function (error, copied){
+								.copy (PATH.join (path, file), function (error, copied){
 									if (error){
 										if (cb) cb (error, false);
 									}else{
@@ -241,7 +242,7 @@ File.prototype.copy = function (location, replace, cb){
 		if (error){
 			if (cb) cb (error, false);
 		}else{
-			PATH.exists (dest, function (exists){
+			PATH.exists (location, function (exists){
 				if (exists && !replace){
 					if (cb) cb (null, false);
 				}else{
@@ -249,7 +250,7 @@ File.prototype.copy = function (location, replace, cb){
 						copyFile ();
 					}else if (stats.isDirectory ()){
 						if (exists && replace){
-							new File (stringDest).remove (function (error, removed){
+							new File (path).remove (function (error, removed){
 								if (error){
 									if (cb) cb (error, false);
 								}else{
@@ -728,22 +729,21 @@ File.prototype.rename = function (file, replace, cb){
 		return;
 	}
 	
-	var isAbsolute = file instanceof File ?
-		file._isAbsolute :
-		new File (file)._isAbsolute;
+	if (!(file instanceof File)){
+		file = new File (file);
+	}
 	
-	var me = this;
-	var stringDest = PATH.normalize (file.toString ());
-	var renamedFile = isAbsolute ? stringDest : PATH.join (this._relative, stringDest);
+	var path = file._path;
+	file = file._usablePath;
 	
 	var me = this;
 	
 	var rename = function (){
-		FS.rename (me._usablePath, renamedFile, function (error){
+		FS.rename (me._usablePath, file, function (error){
 			if (error){
 				if (cb) cb (error, false);
 			}else{
-				updateFileProperties (me, stringDest);
+				updateFileProperties (me, path);
 				if (cb) cb (null, true);
 			}
 		});
@@ -753,7 +753,7 @@ File.prototype.rename = function (file, replace, cb){
 		rename ();
 	}else{
 		var me = this;
-		PATH.exists (renamedFile, function (exists){
+		PATH.exists (file, function (exists){
 			if (exists){
 				if (cb) cb (null, false);
 			}else{
