@@ -170,7 +170,7 @@ File.prototype.contains = function (file, cb){
 	});
 };
 
-File.prototype.copy = function (destination, replace, cb){
+File.prototype.copy = function (location, replace, cb){
 	var argsLen = arguments.length;
 	if (argsLen === 1){
 		replace = false;
@@ -188,11 +188,11 @@ File.prototype.copy = function (destination, replace, cb){
 		return;
 	}
 	
-	var isAbsolute = destination instanceof File ?
-		destination._isAbsolute :
-		new File (destination)._isAbsolute;
+	var isAbsolute = location instanceof File ?
+		location._isAbsolute :
+		new File (location)._isAbsolute;
 	
-	var stringDest = PATH.normalize (destination.toString ());
+	var stringDest = PATH.normalize (location.toString ());
 	var dest = isAbsolute ? stringDest : PATH.join (this._relative, stringDest);
 	var me = this;
 	var copyFile = function (){
