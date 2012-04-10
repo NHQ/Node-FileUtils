@@ -7,7 +7,7 @@
 	"description":		"File and directory utilities.",
 	"repository": {
 		"type": 		"git",
-		"url":			"git://github.com/Gagle/Node-File.git"
+		"url":			"git://github.com/Gagle/Node-FileUtils.git"
 	},
 	"engines": {
 		"node":			">=0.1.7"
