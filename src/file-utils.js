@@ -950,7 +950,7 @@ File.prototype.size = function (cb){
 };
 
 File.prototype.toString = function (){
-	return this._usablePath;
+	return this._path;
 };
 
 var SecurityManager = function (){
