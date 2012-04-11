@@ -18,9 +18,6 @@ Via npm:
 npm install file-utils
 ```
 
-```javascript
-var File = require ("file-utils").File;
-```
 Or simply copying `build/file-utils.js` into your project's directory and `require()` accordingly.
 
 ***
