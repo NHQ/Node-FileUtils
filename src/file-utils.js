@@ -4,8 +4,8 @@
  *
  * @author Gabriel Llamas
  * @created 28/03/2012
- * @modified 11/04/2012
- * @version 0.1.5
+ * @modified 20/04/2012
+ * @version 0.1.6
  */
 "use strict";
 
@@ -72,7 +72,7 @@ var File = function (path){
 	updateFileProperties (this, path);
 };
 
-var checkPermission = function (file, mask, cb){
+var checkPermission = function (file, mask, cb, o){
 	FS.stat (file, function (error, stats){
 		if (error){
 			cb (error, false);
@@ -104,15 +104,17 @@ var setPermission = function (file, mask, action, cb){
 
 File.prototype.canExecute = function (cb){
 	if (!cb) return;
+	cb = cb.bind (this);
 	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
 		return cb (SECURITY_READ_ERROR, false);
 	}
-	checkPermission (this._usablePath, 1, cb);
+	checkPermission (this._usablePath, 1, cb, this);
 };
 
 File.prototype.canRead = function (cb){
 	if (!cb) return;
+	cb = cb.bind (this);
 	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
 		return cb (SECURITY_READ_ERROR, false);
@@ -122,6 +124,7 @@ File.prototype.canRead = function (cb){
 
 File.prototype.canWrite = function (cb){
 	if (!cb) return;
+	cb = cb.bind (this);
 	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
 		return cb (SECURITY_READ_ERROR, false);
@@ -136,6 +139,7 @@ File.prototype.checksum = function (algorithm, encoding, cb){
 	}
 	
 	if (!cb) return;
+	cb = cb.bind (this);
 	if (!this._path) return cb (NULL_PATH_ERROR, null);
 	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
 		return cb (SECURITY_READ_ERROR, null);
@@ -178,6 +182,8 @@ File.prototype.copy = function (location, replace, cb){
 		cb = replace;
 		replace = false;
 	}
+	
+	if (cb) cb = cb.bind (this);
 
 	if (!this._path){
 		if (cb) cb (NULL_PATH_ERROR, false);
@@ -268,6 +274,7 @@ File.prototype.copy = function (location, replace, cb){
 };
 
 File.prototype.createDirectory = function (cb){
+	if (cb) cb = cb.bind (this);
 	if (!this._path){
 		if (cb) cb (NULL_PATH_ERROR, false);
 		return;
@@ -312,6 +319,7 @@ File.prototype.createDirectory = function (cb){
 };
 
 File.prototype.createNewFile = function (cb){
+	if (cb) cb = cb.bind (this);
 	if (!this._path){
 		if (cb) cb (NULL_PATH_ERROR, false);
 		return;
@@ -386,6 +394,7 @@ File.prototype.equals = function (file){
 
 File.prototype.exists = function (cb){
 	if (!cb) return;
+	cb = cb.bind (this);
 	if (!this._path) return cb (false);
 	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
 		return cb (SECURITY_READ_ERROR, false);
@@ -438,6 +447,7 @@ File.prototype.getPath = function (){
 
 File.prototype.getPermissions = function (cb){
 	if (!cb) return;
+	cb = cb.bind (this);
 	if (!this._path) return cb (NULL_PATH_ERROR, null);
 	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
 		return cb (SECURITY_READ_ERROR, null);
@@ -457,6 +467,7 @@ File.prototype.isAbsolute = function (){
 
 File.prototype.isDirectory = function (cb){
 	if (!cb) return;
+	cb = cb.bind (this);
 	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
 		return cb (SECURITY_READ_ERROR, false);
@@ -469,6 +480,7 @@ File.prototype.isDirectory = function (cb){
 
 File.prototype.isFile = function (cb){
 	if (!cb) return;
+	cb = cb.bind (this);
 	if (!this._path) return cb (NULL_PATH_ERROR, false);
 		if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
 		return cb (SECURITY_READ_ERROR, false);
@@ -485,6 +497,7 @@ File.prototype.isHidden = function (){
 
 File.prototype.lastModified = function (cb){
 	if (!cb) return;
+	cb = cb.bind (this);
 	if (!this._path) return cb (NULL_PATH_ERROR, null);
 	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
 		return cb (SECURITY_READ_ERROR, null);
@@ -503,6 +516,7 @@ File.prototype.list = function (filter, cb){
 		filter = null;
 	}
 	if (!cb) return;
+	cb = cb.bind (this);
 	if (!this._path) return (NULL_PATH_ERROR, null);
 	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
 		return cb (SECURITY_READ_ERROR, null);
@@ -586,6 +600,7 @@ File.prototype.listFiles = function (filter, cb){
 		filter = null;
 	}
 	if (!cb) return;
+	cb = cb.bind (this);
 	
 	var replace = function (files){
 		for (var file in files){
@@ -613,6 +628,7 @@ File.protect = function (sm){
 };
 
 File.prototype.remove = function (cb){
+	if (cb) cb = cb.bind (this);
 	if (!this._path){
 		if (cb) cb (NULL_PATH_ERROR, false);
 		return;
@@ -704,6 +720,8 @@ File.prototype.removeOnExit = function (remove, cb){
 		remove = true;
 	}
 	
+	if (cb) cb = cb.bind (this);
+	
 	this._removeOnExit = remove;
 	
 	if (remove && this._removeOnExitCallback.first){
@@ -723,6 +741,8 @@ File.prototype.rename = function (file, replace, cb){
 		cb = replace;
 		replace = false;
 	}
+	
+	if (cb) cb = cb.bind (this);
 	
 	if (!this._path){
 		if (cb) cb (NULL_PATH_ERROR, false);
@@ -769,6 +789,7 @@ File.prototype.rename = function (file, replace, cb){
 
 File.prototype.search = function (file, cb){
 	if (!cb) return;
+	cb = cb.bind (this);
 	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	
 	file = file instanceof File ? file.getName () : file;
@@ -787,6 +808,7 @@ File.prototype.search = function (file, cb){
 
 File.prototype.searchFiles = function (file, cb){
 	if (!cb) return;
+	cb = cb.bind (this);
 	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	
 	this.search (file, function (error, files){
@@ -810,6 +832,8 @@ File.prototype.setExecutable = function (executable, cb){
 		executable = true;
 	}
 	
+	if (cb) cb = cb.bind (this);
+	
 	if (!this._path){
 		if (cb) cb (NULL_PATH_ERROR, false);
 		return;
@@ -826,6 +850,7 @@ File.prototype.setExecutable = function (executable, cb){
 };
 
 File.prototype.setPermissions = function (permissions, cb){
+	if (cb) cb = cb.bind (this);
 	if (!this._path){
 		if (cb) cb (NULL_PATH_ERROR, false);
 		return;
@@ -849,6 +874,8 @@ File.prototype.setReadable = function (readable, cb){
 		readable = true;
 	}
 	
+	if (cb) cb = cb.bind (this);
+	
 	if (!this._path){
 		if (cb) cb (NULL_PATH_ERROR, false);
 		return;
@@ -865,6 +892,7 @@ File.prototype.setReadable = function (readable, cb){
 };
 
 File.prototype.setReadOnly = function (cb){
+	if (cb) cb = cb.bind (this);
 	if (!this._path){
 		if (cb) cb (NULL_PATH_ERROR, false);
 		return;
@@ -888,6 +916,8 @@ File.prototype.setWritable = function (writable, cb){
 		writable = true;
 	}
 	
+	if (cb) cb = cb.bind (this);
+	
 	if (!this._path){
 		if (cb) cb (NULL_PATH_ERROR, false);
 		return;
@@ -902,6 +932,7 @@ File.prototype.setWritable = function (writable, cb){
 
 File.prototype.size = function (cb){
 	if (!cb) return;
+	cb = cb.bind (this);
 	if (!this._path) return cb (NULL_PATH_ERROR, 0);
 	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
 		return cb (SECURITY_READ_ERROR, 0);

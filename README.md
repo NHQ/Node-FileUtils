@@ -7,7 +7,7 @@ Node FileUtils
 
 [Availability](#availability) | [Compatibility](#compatibility) | [Documentation](#documentation)
 
-Version: 0.1.5
+Version: 0.1.6
 
 <a name="availability"></a>
 #### Availability [↑](#start) ####

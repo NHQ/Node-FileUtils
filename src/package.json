@@ -1,22 +1,22 @@
 {
-	"name":				"file-utils",
+	"name": "file-utils",
+	"version": "0.1.6",
+	"description": "File and directory utilities.",
+	"keywords": ["file", "directory", "folder", "utilities", "utils", "file utils",
+				"file utilities", "path"],
 	"author": {
-		"name":			"Gabriel Llamas"
+		"name": "Gabriel Llamas"
 	},
-	"version":			"0.1.5",
-	"description":		"File and directory utilities.",
 	"repository": {
-		"type": 		"git",
-		"url":			"git://github.com/Gagle/Node-FileUtils.git"
+		"type": "git",
+		"url": "git://github.com/Gagle/Node-FileUtils.git"
 	},
 	"engines": {
-		"node":			">=0.1.7"
+		"node": ">=0.1.7"
 	},
-	"keywords":			["file", "directory", "folder", "utilities", "utils", "file utils",
-						"file utilities", "path"],
 	"licenses": [{
-		"type":			"MIT",
-		"url":			"http://www.opensource.org/licenses/mit-license.html"
+		"type": "MIT",
+		"url": "http://www.opensource.org/licenses/mit-license.html"
 	}],
-	"main":				"file-utils"
+	"main": "file-utils"
 }
