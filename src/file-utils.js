@@ -4,8 +4,8 @@
  *
  * @author Gabriel Llamas
  * @created 28/03/2012
- * @modified 20/04/2012
- * @version 0.1.6
+ * @modified 27/04/2012
+ * @version 0.1.7
  */
 "use strict";
 
@@ -395,7 +395,7 @@ File.prototype.equals = function (file){
 File.prototype.exists = function (cb){
 	if (!cb) return;
 	cb = cb.bind (this);
-	if (!this._path) return cb (false);
+	if (!this._path) return cb (NULL_PATH_ERROR, false);
 	if (!(checkSecurity (this._usablePath) & SecurityManager.READ.id)){
 		return cb (SECURITY_READ_ERROR, false);
 	}

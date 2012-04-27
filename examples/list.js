@@ -25,7 +25,7 @@ create (function (){
 		{
 			"b": {
 				"b1.txt": "a/b/b1.txt",
-				"b2.txt": 'a/b/b2.txt",
+				"b2.txt": "a/b/b2.txt",
 				c: {
 					"c1.txt": "a/b/c/c1.txt"
 				}

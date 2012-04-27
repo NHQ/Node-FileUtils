@@ -1,6 +1,6 @@
 {
 	"name": "file-utils",
-	"version": "0.1.6",
+	"version": "0.1.7",
 	"description": "File and directory utilities.",
 	"keywords": ["file", "directory", "folder", "utilities", "utils", "file utils",
 				"file utilities", "path"],

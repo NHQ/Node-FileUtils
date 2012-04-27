@@ -7,7 +7,7 @@ Node FileUtils
 
 [Availability](#availability) | [Compatibility](#compatibility) | [Documentation](#documentation)
 
-Version: 0.1.6
+Version: 0.1.7
 
 The library provides the typical file and directory utilities found in Java JDK and Java FileUtils library.
 It also has a security layer to prevent unwanted operations. All the functions are asynchronous.
